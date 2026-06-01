@@ -36,6 +36,10 @@
 		"vite": "^8.0.7"
 	},
 	"dependencies": {
-		"better-sqlite3": "^12.8.0"
+		"@lucia-auth/adapter-sqlite": "^3.0.2",
+		"better-sqlite3": "^12.8.0",
+		"date-fns": "^4.4.0",
+		"lucia": "^3.2.2",
+		"oslo": "^1.2.1"
 	}
 }
