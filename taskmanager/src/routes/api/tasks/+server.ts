@@ -40,9 +40,22 @@ export const GET: RequestHandler = async (event) => {
 			throw error(400, `Unknown view: ${view}`);
 	}
 
+	const projectIdParam = searchParams.get('projectId');
+	let parsedProjectId: number | undefined;
+	if (projectIdParam !== null) {
+		parsedProjectId = parseInt(projectIdParam, 10);
+	}
+
+	const finalWhereClause =
+		parsedProjectId !== undefined
+			? whereClause
+				? and(whereClause, eq(tasks.projectId, parsedProjectId))
+				: eq(tasks.projectId, parsedProjectId)
+			: whereClause;
+
 	const queryBuilder = db.select().from(tasks);
 
-	const filteredBuilder = whereClause ? queryBuilder.where(whereClause) : queryBuilder;
+	const filteredBuilder = finalWhereClause ? queryBuilder.where(finalWhereClause) : queryBuilder;
 
 	const rows = await filteredBuilder.orderBy(
 		sql`CASE ${tasks.priority}
