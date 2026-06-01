@@ -43,7 +43,10 @@ export const GET: RequestHandler = async (event) => {
 	const projectIdParam = searchParams.get('projectId');
 	let parsedProjectId: number | undefined;
 	if (projectIdParam !== null) {
-		parsedProjectId = parseInt(projectIdParam, 10);
+		const parsed = parseInt(projectIdParam, 10);
+		if (!isNaN(parsed)) {
+			parsedProjectId = parsed;
+		}
 	}
 
 	const finalWhereClause =
@@ -80,6 +83,24 @@ export const POST: RequestHandler = async (event) => {
 		throw error(400, 'Title is required (max 256 chars)');
 	}
 
+	if (dueDate !== undefined && dueDate !== null && typeof dueDate !== 'string') {
+		throw error(400, 'dueDate must be a string');
+	}
+
+	const allowedPriorities = ['none', 'low', 'medium', 'urgent'];
+	const resolvedPriority = priority || 'none';
+	if (!allowedPriorities.includes(resolvedPriority)) {
+		throw error(400, `priority must be one of: ${allowedPriorities.join(', ')}`);
+	}
+
+	let parsedProjectId: number | null = null;
+	if (projectId != null) {
+		parsedProjectId = parseInt(projectId as string, 10);
+		if (isNaN(parsedProjectId)) {
+			throw error(400, 'projectId must be a valid number');
+		}
+	}
+
 	const inserted = await db
 		.insert(tasks)
 		.values({
@@ -87,8 +108,8 @@ export const POST: RequestHandler = async (event) => {
 			description:
 				description && typeof description === 'string' && description.length ? description : null,
 			dueDate: dueDate || null,
-			projectId: projectId ? parseInt(projectId as string, 10) : null,
-			priority: priority || 'none'
+			projectId: parsedProjectId,
+			priority: resolvedPriority
 		})
 		.returning();
 
@@ -97,20 +118,37 @@ export const POST: RequestHandler = async (event) => {
 
 export const PUT: RequestHandler = async (event) => {
 	const body = await event.request.json();
-	const { id, ...updates } = body;
+	const { id, title, description, completed, dueDate, projectId, priority } = body;
 
-	if (!id) throw error(400, 'Task ID required');
+	if (typeof id !== 'number' || !Number.isFinite(id)) throw error(400, 'Task ID required');
 
-	// Sanitize projectId if provided
-	if ('projectId' in updates && updates.projectId != null) {
-		updates.projectId = parseInt(updates.projectId as string, 10);
+	let parsedProjectId: number | null = null;
+	if (projectId != null) {
+		parsedProjectId = parseInt(projectId as string, 10);
+		if (isNaN(parsedProjectId)) {
+			throw error(400, 'projectId must be a valid number');
+		}
 	}
 
-	const updated = await db
-		.update(tasks)
-		.set({ ...updates, updatedAt: new Date().toISOString() })
-		.where(eq(tasks.id, id))
-		.returning();
+	const allowedPriorities = ['none', 'low', 'medium', 'urgent'];
+	const resolvedPriority = priority ?? undefined;
+	if (resolvedPriority !== undefined && !allowedPriorities.includes(resolvedPriority)) {
+		throw error(400, `priority must be one of: ${allowedPriorities.join(', ')}`);
+	}
+
+	if (dueDate !== undefined && dueDate !== null && typeof dueDate !== 'string') {
+		throw error(400, 'dueDate must be a string');
+	}
+
+	const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+	if (title !== undefined) updates.title = title;
+	if (description !== undefined) updates.description = description;
+	if (completed !== undefined) updates.completed = completed;
+	if (dueDate !== undefined) updates.dueDate = dueDate || null;
+	if (projectId !== undefined) updates.projectId = parsedProjectId;
+	if (resolvedPriority !== undefined) updates.priority = resolvedPriority;
+
+	const updated = await db.update(tasks).set(updates).where(eq(tasks.id, id)).returning();
 
 	if (!updated.length) throw error(404, 'Task not found');
 	return json(updated[0]);
@@ -120,7 +158,7 @@ export const DELETE: RequestHandler = async (event) => {
 	const body = await event.request.json();
 	const { id } = body;
 
-	if (!id) throw error(400, 'Task ID required');
+	if (typeof id !== 'number' || !Number.isFinite(id)) throw error(400, 'Task ID required');
 
 	const deleted = await db.delete(tasks).where(eq(tasks.id, id)).returning();
 	if (!deleted.length) throw error(404, 'Task not found');
