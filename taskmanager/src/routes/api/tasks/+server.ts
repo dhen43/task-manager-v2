@@ -79,7 +79,12 @@ export const POST: RequestHandler = async (event) => {
 	const body = await event.request.json();
 	const { title, description, dueDate, projectId, priority } = body;
 
-	if (!title || typeof title !== 'string' || title.trim().length === 0 || title.length > 256) {
+	if (
+		!title ||
+		typeof title !== 'string' ||
+		title.trim().length === 0 ||
+		title.trim().length > 256
+	) {
 		throw error(400, 'Title is required (max 256 chars)');
 	}
 
@@ -122,6 +127,20 @@ export const PUT: RequestHandler = async (event) => {
 
 	if (typeof id !== 'number' || !Number.isFinite(id)) throw error(400, 'Task ID required');
 
+	if (title !== undefined) {
+		if (typeof title !== 'string' || title.trim().length === 0 || title.trim().length > 256) {
+			throw error(400, 'Title must be a non-empty string (max 256 chars)');
+		}
+	}
+
+	if (description !== undefined && typeof description !== 'string') {
+		throw error(400, 'Description must be a string');
+	}
+
+	if (completed !== undefined && typeof completed !== 'boolean') {
+		throw error(400, 'Completed must be a boolean');
+	}
+
 	let parsedProjectId: number | null = null;
 	if (projectId != null) {
 		parsedProjectId = parseInt(projectId as string, 10);
@@ -141,7 +160,7 @@ export const PUT: RequestHandler = async (event) => {
 	}
 
 	const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
-	if (title !== undefined) updates.title = title;
+	if (title !== undefined) updates.title = (title as string).trim();
 	if (description !== undefined) updates.description = description;
 	if (completed !== undefined) updates.completed = completed;
 	if (dueDate !== undefined) updates.dueDate = dueDate || null;
