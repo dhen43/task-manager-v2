@@ -2,6 +2,15 @@
 	import { onMount } from 'svelte';
 	import { modalStore } from '$lib/stores/modal.svelte';
 
+	interface TaskData {
+		id: number;
+		title: string;
+		description: string | null;
+		dueDate: string | null;
+		priority: string;
+		projectId: number | null;
+	}
+
 	let {
 		projects = [],
 		onClose,
@@ -10,8 +19,8 @@
 	}: {
 		projects?: { id: number; title: string }[];
 		onClose: () => void;
-		onSave?: (data: any) => void;
-		onCreated?: (task: any) => void;
+		onSave?: (data: TaskData) => void;
+		onCreated?: (task: TaskData) => void;
 	} = $props();
 
 	let modal = $derived(modalStore.values);
@@ -25,6 +34,7 @@
 	);
 	let taskId: number | null = $state(modal.editingId);
 	let persisted = $state(false);
+	let errorMessage = $state('');
 
 	$effect(() => {
 		if (modal.contextProjectId !== selectedProjectId) {
@@ -35,16 +45,20 @@
 
 	onMount(async () => {
 		if (!modal.editingId) return;
-		const res = await fetch(`/api/tasks?id=${modal.editingId}`);
-		const task = await res.json();
-		title = task.title;
-		description = task.description || '';
-		dueDate = task.dueDate || '';
-		priority = task.priority || 'none';
-		selectedProjectId = task.projectId;
-		selectedProjectIdStr = selectedProjectId !== null ? String(selectedProjectId) : '';
-		taskId = task.id;
-		persisted = true;
+		try {
+			const res = await fetch(`/api/tasks?id=${modal.editingId}`);
+			const task = await res.json();
+			title = task.title;
+			description = task.description || '';
+			dueDate = task.dueDate || '';
+			priority = task.priority || 'none';
+			selectedProjectId = task.projectId;
+			selectedProjectIdStr = selectedProjectId !== null ? String(selectedProjectId) : '';
+			taskId = task.id;
+			persisted = true;
+		} catch {
+			errorMessage = 'Failed to load task';
+		}
 	});
 
 	function handleTitleBlur() {
@@ -63,15 +77,19 @@
 			projectId: projectIdNum,
 			priority
 		};
-		const res = await fetch('/api/tasks', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(payload)
-		});
-		const task = await res.json();
-		taskId = task.id;
-		persisted = true;
-		onCreated?.(task);
+		try {
+			const res = await fetch('/api/tasks', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			const task = await res.json();
+			taskId = task.id;
+			persisted = true;
+			onCreated?.(task);
+		} catch {
+			errorMessage = 'Failed to create task';
+		}
 	}
 
 	async function handleSave() {
@@ -86,12 +104,20 @@
 			projectId: projectIdNum,
 			priority
 		};
-		await fetch('/api/tasks', {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(payload)
-		});
-		onClose();
+		try {
+			const res = await fetch('/api/tasks', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(payload)
+			});
+			if (res.ok) {
+				onClose();
+			} else {
+				errorMessage = 'Failed to save task';
+			}
+		} catch {
+			errorMessage = 'Failed to save task';
+		}
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -107,6 +133,15 @@
 		<h2 class="text-xl font-bold">{modal.editingId ? 'Edit Task' : 'New Task'}</h2>
 		<button onclick={onClose} class="text-xl text-gray-400 hover:text-gray-600">✕</button>
 	</div>
+
+	{#if errorMessage}
+		<div
+			class="mb-4 rounded bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400"
+		>
+			{errorMessage}
+			<button onclick={() => (errorMessage = '')} class="ml-2 font-bold">✕</button>
+		</div>
+	{/if}
 
 	<div class="space-y-4">
 		<div>

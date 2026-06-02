@@ -9,6 +9,24 @@
 	let description = $state('');
 	let projectId: number | null = $state(modal.editingId);
 	let persisted = $state(!!modal.editingId);
+	let errorMessage = $state('');
+
+	onMount(async () => {
+		if (!modal.editingId) return;
+		try {
+			const res = await fetch('/api/projects');
+			const projects = await res.json();
+			const project = projects.find(
+				(p: { id: number; title: string; description?: string | null }) => p.id === modal.editingId
+			);
+			if (project) {
+				title = project.title;
+				description = project.description || '';
+			}
+		} catch {
+			errorMessage = 'Failed to load project';
+		}
+	});
 
 	async function handleSave() {
 		if (!title.trim()) return;
@@ -21,18 +39,22 @@
 		const method = projectId ? 'PUT' : 'POST';
 		const body = projectId ? payload : { title: payload.title, description: payload.description };
 
-		const res = await fetch('/api/projects', {
-			method,
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(body)
-		});
+		try {
+			const res = await fetch('/api/projects', {
+				method,
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body)
+			});
 
-		if (!projectId) {
-			const created = await res.json();
-			projectId = created.id;
+			if (!projectId) {
+				const created = await res.json();
+				projectId = created.id;
+			}
+			persisted = true;
+			onClose();
+		} catch {
+			errorMessage = 'Failed to save project';
 		}
-		persisted = true;
-		onClose();
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -40,18 +62,6 @@
 			e.preventDefault();
 			handleSave();
 		}
-	}
-
-	if (modal.editingId) {
-		onMount(async () => {
-			const res = await fetch('/api/projects');
-			const projects = await res.json();
-			const project = projects.find((p: any) => p.id === modal.editingId);
-			if (project) {
-				title = project.title;
-				description = project.description || '';
-			}
-		});
 	}
 </script>
 
@@ -62,6 +72,13 @@
 	</div>
 
 	<div class="space-y-4">
+		{#if errorMessage}
+			<div class="rounded bg-red-50 p-3 text-sm text-red-600 dark:bg-red-900/20 dark:text-red-400">
+				{errorMessage}
+				<button onclick={() => (errorMessage = '')} class="ml-2 font-bold">✕</button>
+			</div>
+		{/if}
+
 		<div>
 			<input
 				type="text"
