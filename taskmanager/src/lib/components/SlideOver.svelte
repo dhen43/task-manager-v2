@@ -28,6 +28,13 @@
 			window.removeEventListener('keydown', handleKeydown);
 		};
 	});
+
+	$effect(() => {
+		window.addEventListener('modal-save', handleClose as EventListener);
+		return () => {
+			window.removeEventListener('modal-save', handleClose as EventListener);
+		};
+	});
 </script>
 
 {#if visible}

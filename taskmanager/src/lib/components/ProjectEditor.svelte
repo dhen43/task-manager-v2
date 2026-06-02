@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { modalStore } from '$lib/stores/modal.svelte';
 
 	let { onClose }: { onClose: () => void } = $props();
@@ -39,6 +40,18 @@
 			e.preventDefault();
 			handleSave();
 		}
+	}
+
+	if (modal.editingId) {
+		onMount(async () => {
+			const res = await fetch('/api/projects');
+			const projects = await res.json();
+			const project = projects.find((p: any) => p.id === modal.editingId);
+			if (project) {
+				title = project.title;
+				description = project.description || '';
+			}
+		});
 	}
 </script>
 
