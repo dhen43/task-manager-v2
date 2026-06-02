@@ -43,6 +43,8 @@
 		});
 
 		if (newCompleted) {
+			taskList = taskList.filter((t) => t.id !== id);
+			completedList.push({ ...task, completed: true });
 			showToast('Task completed', {
 				action: {
 					label: 'Undo',
@@ -52,11 +54,11 @@
 							headers: { 'Content-Type': 'application/json' },
 							body: JSON.stringify({ id, completed: false })
 						});
-						task.completed = false;
+						completedList = completedList.filter((t) => t.id !== id);
+						taskList.push({ ...task, completed: false });
 					}
 				}
 			});
-			task.completed = true;
 		} else {
 			task.completed = false;
 		}
@@ -68,9 +70,22 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ id })
 		});
+		const deletedTask = taskList.find((t) => t.id === id);
 		taskList = taskList.filter((t) => t.id !== id);
 		showToast('Task deleted', {
-			action: { label: 'Undo', handler: async () => {} }
+			action: {
+				label: 'Undo',
+				handler: async () => {
+					if (deletedTask) {
+						await fetch('/api/tasks', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify(deletedTask)
+						});
+						taskList.push(deletedTask);
+					}
+				}
+			}
 		});
 	}
 
@@ -106,7 +121,13 @@
 			const file = (e.target as HTMLInputElement).files?.[0];
 			if (!file) return;
 			const text = await file.text();
-			const json = JSON.parse(text);
+			let json: any;
+			try {
+				json = JSON.parse(text);
+			} catch {
+				showToast('Invalid JSON file', {});
+				return;
+			}
 			await fetch('/api/import', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },

@@ -34,7 +34,7 @@ export const load: PageServerLoad = async (event) => {
 		.where(
 			and(
 				eq(tasks.completed, false),
-				sql`due_date IS NOT NULL AND substr(due_date, 1, 10) <= ${todayStr}`
+				sql`due_date IS NULL OR substr(due_date, 1, 10) <= ${todayStr}`
 			)
 		)
 		.orderBy(desc(tasks.priority), asc(tasks.dueDate), asc(tasks.createdAt));
