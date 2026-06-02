@@ -7,6 +7,17 @@ import { startOfDay, endOfDay, addDays } from 'date-fns';
 
 export const GET: RequestHandler = async (event) => {
 	const { searchParams } = event.url;
+	const idParam = searchParams.get('id');
+
+	if (idParam !== null) {
+		const parsedId = parseInt(idParam, 10);
+		if (!isNaN(parsedId)) {
+			const rows = await db.select().from(tasks).where(eq(tasks.id, parsedId));
+			if (!rows.length) throw error(404, 'Task not found');
+			return json(rows[0]);
+		}
+	}
+
 	const view = searchParams.get('view') || 'today';
 
 	let whereClause: import('drizzle-orm').SQL | undefined;
