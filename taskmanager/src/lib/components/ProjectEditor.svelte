@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import { modalStore } from '$lib/stores/modal.svelte';
 
-	let { onClose }: { onClose: () => void } = $props();
+	let { onClose, onCreated }: { onClose: () => void; onCreated?: () => void } = $props();
 
 	let modal = $derived(modalStore.values);
 	let title = $state('');
@@ -50,6 +50,7 @@
 				if (!projectId) {
 					const created = await res.json();
 					projectId = created.id;
+					onCreated?.();
 				}
 				persisted = true;
 				onClose();
