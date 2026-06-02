@@ -6,7 +6,7 @@ import { settings } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 
 export const actions: Actions = {
-	default: async (event) => {
+	setup: async (event) => {
 		const formData = await event.request.formData();
 		const email = formData.get('email') as string;
 		const password = formData.get('password') as string;

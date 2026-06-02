@@ -27,9 +27,11 @@ const hasher = new Argon2id();
 
 export async function createUser(email: string, password: string) {
 	const passwordHash = await hasher.hash(password);
+	const userId = crypto.randomUUID();
 	const result = await db
 		.insert(users)
 		.values({
+			id: userId,
 			email,
 			passwordHash
 		})
@@ -46,7 +48,7 @@ export async function validatePassword(email: string, password: string) {
 	return existingUser[0];
 }
 
-export async function changePassword(userId: number, newPassword: string) {
+export async function changePassword(userId: string, newPassword: string) {
 	const passwordHash = await hasher.hash(newPassword);
 	await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
 }

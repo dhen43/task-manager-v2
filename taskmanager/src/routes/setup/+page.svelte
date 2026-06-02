@@ -6,7 +6,7 @@
 
 <div class="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
 	<form
-		action="?/default"
+		action="?/setup"
 		method="POST"
 		class="w-full max-w-md rounded-lg bg-white p-8 shadow dark:bg-gray-800"
 	>

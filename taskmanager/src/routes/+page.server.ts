@@ -55,7 +55,7 @@ export const load: PageServerLoad = async (event) => {
 		})
 		.from(tasks)
 		.leftJoin(projects, eq(tasks.projectId, projects.id))
-		.where(and(eq(tasks.completed, true), sql`date(updated_at) >= date('now', '-7 days')`));
+		.where(and(eq(tasks.completed, true), sql`date(tasks.updated_at) >= date('now', '-7 days')`));
 
 	const allProjects = await db.select().from(projects).where(eq(projects.archived, false));
 
