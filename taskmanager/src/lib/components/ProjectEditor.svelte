@@ -46,12 +46,16 @@
 				body: JSON.stringify(body)
 			});
 
-			if (!projectId) {
-				const created = await res.json();
-				projectId = created.id;
+			if (res.ok) {
+				if (!projectId) {
+					const created = await res.json();
+					projectId = created.id;
+				}
+				persisted = true;
+				onClose();
+			} else {
+				errorMessage = 'Failed to save project';
 			}
-			persisted = true;
-			onClose();
 		} catch {
 			errorMessage = 'Failed to save project';
 		}
