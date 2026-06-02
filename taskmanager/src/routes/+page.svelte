@@ -32,57 +32,97 @@
 	let expandedCompleted = $state(false);
 
 	async function toggleTask(id: number) {
-		const task = taskList.find((t) => t.id === id);
+		let task = taskList.find((t) => t.id === id);
+		let inCompleted = false;
+		if (!task) {
+			task = completedList.find((t) => t.id === id);
+			inCompleted = !!task;
+		}
 		if (!task) return;
 		const newCompleted = !task.completed;
 
-		await fetch('/api/tasks', {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ id, completed: newCompleted })
-		});
+		const prevTaskList = [...taskList];
+		const prevCompletedList = [...completedList];
 
-		if (newCompleted) {
-			taskList = taskList.filter((t) => t.id !== id);
-			completedList.push({ ...task, completed: true });
-			showToast('Task completed', {
-				action: {
-					label: 'Undo',
-					handler: async () => {
-						await fetch('/api/tasks', {
-							method: 'PUT',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({ id, completed: false })
-						});
-						completedList = completedList.filter((t) => t.id !== id);
-						taskList.push({ ...task, completed: false });
-					}
-				}
+		try {
+			await fetch('/api/tasks', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id, completed: newCompleted })
 			});
-		} else {
-			task.completed = false;
+
+			if (newCompleted) {
+				taskList = taskList.filter((t) => t.id !== id);
+				completedList.push({ ...task, completed: true });
+				showToast('Task completed', {
+					action: {
+						label: 'Undo',
+						handler: async () => {
+							try {
+								await fetch('/api/tasks', {
+									method: 'PUT',
+									headers: { 'Content-Type': 'application/json' },
+									body: JSON.stringify({ id, completed: false })
+								});
+								completedList = completedList.filter((t) => t.id !== id);
+								taskList.push({ ...task, completed: false });
+							} catch {
+								taskList = prevTaskList;
+								completedList = prevCompletedList;
+								showToast('Failed to undo', {});
+							}
+						}
+					}
+				});
+			} else {
+				if (inCompleted) {
+					completedList = completedList.filter((t) => t.id !== id);
+					taskList.push({ ...task, completed: false });
+				} else {
+					task.completed = false;
+				}
+			}
+		} catch {
+			taskList = prevTaskList;
+			completedList = prevCompletedList;
+			showToast('Failed to update task', {});
 		}
 	}
 
 	async function deleteTask(id: number) {
-		await fetch('/api/tasks', {
-			method: 'DELETE',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ id })
-		});
 		const deletedTask = taskList.find((t) => t.id === id);
-		taskList = taskList.filter((t) => t.id !== id);
+		if (!deletedTask) return;
+		const prevTaskList = [...taskList];
+
+		try {
+			await fetch('/api/tasks', {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ id })
+			});
+			taskList = taskList.filter((t) => t.id !== id);
+		} catch {
+			taskList = prevTaskList;
+			showToast('Failed to delete task', {});
+			return;
+		}
+
 		showToast('Task deleted', {
 			action: {
 				label: 'Undo',
 				handler: async () => {
 					if (deletedTask) {
-						await fetch('/api/tasks', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify(deletedTask)
-						});
-						taskList.push(deletedTask);
+						try {
+							await fetch('/api/tasks', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify(deletedTask)
+							});
+							taskList.push(deletedTask);
+						} catch {
+							taskList = prevTaskList;
+							showToast('Failed to undo deletion', {});
+						}
 					}
 				}
 			}
@@ -99,13 +139,17 @@
 
 	async function handleDateSet(date: string | null) {
 		if (promptTaskId !== null) {
-			await fetch('/api/tasks', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ id: promptTaskId, dueDate: date })
-			});
-			const task = taskList.find((t) => t.id === promptTaskId);
-			if (task) task.dueDate = date;
+			try {
+				await fetch('/api/tasks', {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ id: promptTaskId, dueDate: date })
+				});
+				const task = taskList.find((t) => t.id === promptTaskId);
+				if (task) task.dueDate = date;
+			} catch {
+				showToast('Failed to update due date', {});
+			}
 		}
 	}
 
